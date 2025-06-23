@@ -11,12 +11,17 @@ void systick_config(void);
 void ADC_config(void);
 void timer_config(void);
 void TIM2_IRQHandler(void);
+void USART1_IRQHandler(void);
+
+uint32_t Rdata = 0;
+uint32_t Sdata = 0;
 
 int main(void){
 En_clock();
 gpio_setup();
 systick_config();
 timer_config();
+Uart_config();
 	
 while(1){
 
@@ -102,7 +107,7 @@ delay_ms();
 void timer_config(void){
 TIM2->CNT = 0;
 TIM2->PSC = 7200-1;
-TIM2->ARR = 500;
+TIM2->ARR = 5000;
 TIM2->DIER |= TIM_DIER_UIE;
 TIM2->CR1 |= TIM_CR1_DIR ;
 TIM2->CR1 |=TIM_CR1_CEN;
@@ -115,11 +120,40 @@ void TIM2_IRQHandler(void){
 		TIM2->SR &= ~TIM_SR_UIF;
 
 		GPIOA->ODR ^= GPIO_ODR_ODR4;
+			Sdata ^= 1;
+		USART1->DR = Sdata;
 			
 		}
 	
 }
-void Uart_config(void);
+void Uart_config(void){
+USART1->CR1 |= 	USART_CR1_TE 
+							|	USART_CR1_RE
+							| USART_CR1_RXNEIE
+							| USART_CR1_UE;
+
+// Baud rate is 9600;
+USART1->BRR = 0x1DCC;
+	
+NVIC_EnableIRQ(USART1_IRQn);
+
+}
+
+void USART1_IRQHandler(void){
+
+		if(USART1->SR & USART_SR_RXNE){
+				USART1->SR &= ~USART_SR_RXNE;
+				
+			Rdata = USART1->DR;
+			if(Rdata){
+			GPIOA->ODR ^= GPIO_ODR_ODR1;
+			}
+			
+			
+				
+	}
+}
+
 //uint8_t debounce(uint8_t last);
 void ADC_config(void);
 
