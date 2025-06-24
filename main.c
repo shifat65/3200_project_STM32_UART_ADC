@@ -13,11 +13,13 @@ void ADC_config(void);
 void timer_config(void);
 void TIM2_IRQHandler(void);
 void USART1_IRQHandler(void);
+void ADC1_2_IRQHandler(void);
 
 uint32_t Rdata = 0;
 uint32_t Sdata = 0;
 uint32_t Rdata2 = 0;
 uint32_t Sdata2 = 0;
+uint16_t Adc_data = 0;
 
 int main(void)
 {
@@ -27,14 +29,17 @@ int main(void)
 	timer_config();
 	Uart1_config();
 	Uart2_config();
+	ADC_config();
 
 	while (1)
 	{
+		GPIOB->ODR &= ~GPIO_ODR_ODR1;
+		GPIOB->ODR &= ~GPIO_ODR_ODR10;
 
-		// GPIOA->ODR |= GPIO_ODR_ODR0;
-		// delay(200);
-		// GPIOA->ODR &= ~GPIO_ODR_ODR0;
-		// delay(200);
+		//GPIOB->ODR |= GPIO_ODR_ODR10;
+		//delay(20);
+		//GPIOB->ODR &= ~GPIO_ODR_ODR10;
+		//delay(20);
 	}
 
 	return 0;
@@ -44,7 +49,7 @@ void En_clock(void)
 {
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN | RCC_APB1ENR_TIM2EN;
 
-	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN | RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_ADC1EN;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN | RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_ADC1EN | RCC_APB2ENR_ADC1EN;
 }
 
 void gpio_setup(void)
@@ -88,6 +93,21 @@ void gpio_setup(void)
 	// PA10 UART1 RX : input floating 0100
 	GPIOA->CRH &= ~(GPIO_CRH_CNF10 | GPIO_CRH_MODE10);
 	GPIOA->CRH |= GPIO_CRH_CNF10_0;
+	
+	//PB0 analog input for ADC 0000
+	GPIOB->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
+	
+	//PB1 Response on ADC watchdog 0011
+	GPIOB->CRL &= ~(GPIO_CRL_CNF1 | GPIO_CRL_MODE1);
+	GPIOB->CRL |= GPIO_CRL_MODE1;
+	
+	//PB5 Response on ADC watchdog (2) 0011
+	GPIOB->CRL &= ~(GPIO_CRL_CNF5 | GPIO_CRL_MODE5);
+	GPIOB->CRL |= GPIO_CRL_MODE5;
+	
+	//PB10 Response on ADC watchdog (3) 0011
+	GPIOB->CRH &= ~(GPIO_CRH_CNF10| GPIO_CRH_MODE10);
+	GPIOB->CRH |= GPIO_CRH_MODE10;
 }
 
 void systick_config(void)
@@ -117,7 +137,7 @@ void timer_config(void)
 {
 	TIM2->CNT = 0;
 	TIM2->PSC = 7200 - 1;
-	TIM2->ARR = 50000;
+	TIM2->ARR = 30000;
 	TIM2->DIER |= TIM_DIER_UIE;
 	TIM2->CR1 |= TIM_CR1_DIR;
 	TIM2->CR1 |= TIM_CR1_CEN;
@@ -201,5 +221,45 @@ void USART2_IRQHandler(void)
 	}
 }
 
-// uint8_t debounce(uint8_t last);
-void ADC_config(void);
+
+void ADC_config(void){
+ADC1->CR1 |= 	ADC_CR1_AWDEN 
+						| ADC_CR1_AWDIE
+						| ADC_CR1_AWDCH_3;
+
+ADC1->SQR3 = ADC_SQR3_SQ1_3;
+
+ADC1->CR2 |= ADC_CR2_CONT;
+
+ADC1->CR2 |= ADC_CR2_ADON;
+
+ADC1->HTR = 0xB00;
+ADC1->LTR = 0x800;
+
+delay(500);
+ADC1->CR2 |= ADC_CR2_ADON;
+	
+NVIC_EnableIRQ(ADC1_2_IRQn);
+}
+
+void ADC1_2_IRQHandler(void)
+{
+	Adc_data = ADC1->DR;
+    if (ADC1->SR & ADC_SR_AWD) {
+			
+			if(Adc_data > ADC1->HTR){
+				GPIOB->ODR |= GPIO_ODR_ODR1;
+				GPIOB->ODR &= ~GPIO_ODR_ODR10;
+			}
+			else{
+				GPIOB->ODR |= GPIO_ODR_ODR10;
+				GPIOB->ODR &= ~GPIO_ODR_ODR1;
+			
+			}
+			ADC1->SR &= ~ADC_SR_AWD;
+    }
+		
+		
+		
+		
+}
