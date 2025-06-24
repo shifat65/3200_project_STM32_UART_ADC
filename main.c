@@ -8,7 +8,6 @@ void Uart2_config(void);
 void delay_ms(void);
 void delay(uint32_t count);
 void systick_config(void);
-// uint8_t debounce(uint8_t last);
 void ADC_config(void);
 void timer_config(void);
 void TIM2_IRQHandler(void);
@@ -20,6 +19,8 @@ uint32_t Sdata = 0;
 uint32_t Rdata2 = 0;
 uint32_t Sdata2 = 0;
 uint16_t Adc_data = 0;
+uint8_t prs = 0;
+uint8_t pas = 0;
 
 int main(void)
 {
@@ -29,17 +30,25 @@ int main(void)
 	timer_config();
 	Uart1_config();
 	Uart2_config();
-	ADC_config();
+	//ADC_config();
 
 	while (1)
 	{
 		GPIOB->ODR &= ~GPIO_ODR_ODR1;
 		GPIOB->ODR &= ~GPIO_ODR_ODR10;
 
-		//GPIOB->ODR |= GPIO_ODR_ODR10;
-		//delay(20);
-		//GPIOB->ODR &= ~GPIO_ODR_ODR10;
-		//delay(20);
+
+		/*delay(2000);
+		USART1->DR = 2;
+		delay(2000);
+		USART1->DR = 3;	
+
+
+		GPIOB->ODR |= GPIO_ODR_ODR1;
+		delay(20);
+		GPIOB->ODR &= ~GPIO_ODR_ODR1;
+		delay(20);
+		*/
 	}
 
 	return 0;
@@ -97,15 +106,15 @@ void gpio_setup(void)
 	//PB0 analog input for ADC 0000
 	GPIOB->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
 	
-	//PB1 Response on ADC watchdog 0011
+	//PB1 Response on ADC watchdog 0011 (light is very high)
 	GPIOB->CRL &= ~(GPIO_CRL_CNF1 | GPIO_CRL_MODE1);
 	GPIOB->CRL |= GPIO_CRL_MODE1;
 	
-	//PB5 Response on ADC watchdog (2) 0011
+	//PB5 Response on ADC watchdog on arrived from other stm  (2) 0011
 	GPIOB->CRL &= ~(GPIO_CRL_CNF5 | GPIO_CRL_MODE5);
 	GPIOB->CRL |= GPIO_CRL_MODE5;
 	
-	//PB10 Response on ADC watchdog (3) 0011
+	//PB10 Response on ADC watchdog(light is very low) (3) 0011
 	GPIOB->CRH &= ~(GPIO_CRH_CNF10| GPIO_CRH_MODE10);
 	GPIOB->CRH |= GPIO_CRH_MODE10;
 }
@@ -137,7 +146,7 @@ void timer_config(void)
 {
 	TIM2->CNT = 0;
 	TIM2->PSC = 7200 - 1;
-	TIM2->ARR = 30000;
+	TIM2->ARR = 50000;
 	TIM2->DIER |= TIM_DIER_UIE;
 	TIM2->CR1 |= TIM_CR1_DIR;
 	TIM2->CR1 |= TIM_CR1_CEN;
@@ -178,16 +187,27 @@ void USART1_IRQHandler(void)
 {
 
 	if (USART1->SR & USART_SR_RXNE)
-	{
+	{	
+		Rdata = USART1->DR;
 		USART1->SR &= ~USART_SR_RXNE;
 
 		// Receving data from USART1 rx
 		GPIOA->ODR |= GPIO_ODR_ODR1;
-		Rdata = USART1->DR;
+		
+		
+		
 		if (Rdata == 1 | Rdata == 0)
 		{
 			GPIOA->ODR ^= GPIO_ODR_ODR4;
 		}
+		
+		if(Rdata == 2){
+		GPIOB->ODR |= GPIO_ODR_ODR5;
+		}
+		if(Rdata == 3){
+		GPIOB->ODR &= ~GPIO_ODR_ODR5;
+		}
+		
 		delay(25);
 		GPIOA->ODR &= ~GPIO_ODR_ODR1;
 	}
@@ -234,7 +254,7 @@ ADC1->CR2 |= ADC_CR2_CONT;
 ADC1->CR2 |= ADC_CR2_ADON;
 
 ADC1->HTR = 0xB00;
-ADC1->LTR = 0x800;
+ADC1->LTR = 0x200;
 
 delay(500);
 ADC1->CR2 |= ADC_CR2_ADON;
@@ -245,21 +265,38 @@ NVIC_EnableIRQ(ADC1_2_IRQn);
 void ADC1_2_IRQHandler(void)
 {
 	Adc_data = ADC1->DR;
+
     if (ADC1->SR & ADC_SR_AWD) {
 			
 			if(Adc_data > ADC1->HTR){
-				GPIOB->ODR |= GPIO_ODR_ODR1;
-				GPIOB->ODR &= ~GPIO_ODR_ODR10;
+				GPIOB->ODR |= GPIO_ODR_ODR1;// status in self stm
+				//send high if state is changed
+				prs = 2;
+				if(prs != pas){
+					pas = prs;
+					GPIOA->ODR |= GPIO_ODR_ODR0;
+					USART1->DR = prs;
+					delay(25);
+					GPIOA->ODR &= ~GPIO_ODR_ODR0;
+				}
+				
 			}
-			else{
-				GPIOB->ODR |= GPIO_ODR_ODR10;
-				GPIOB->ODR &= ~GPIO_ODR_ODR1;
-			
+			else if(Adc_data < ADC1->LTR){
+				//status in self stm
+				GPIOB->ODR |= GPIO_ODR_ODR10;	
+				//send low if state is changed
+				prs = 3;
+				if(prs != pas){
+					pas = prs;
+					GPIOA->ODR |= GPIO_ODR_ODR0;
+					USART1->DR = prs;
+					
+					delay(25);
+					GPIOA->ODR &= ~GPIO_ODR_ODR0;				
+				}
+						
 			}
 			ADC1->SR &= ~ADC_SR_AWD;
     }
-		
-		
-		
-		
-}
+
+	}
