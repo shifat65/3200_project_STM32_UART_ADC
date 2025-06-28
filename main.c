@@ -13,6 +13,7 @@ void timer_config(void);
 void TIM2_IRQHandler(void);
 void USART1_IRQHandler(void);
 void ADC1_2_IRQHandler(void);
+void Exi_config(void);
 
 uint32_t Rdata=0;
 uint32_t Sdata=3;
@@ -30,8 +31,8 @@ int main(void)
 	systick_config();
 	timer_config();
 	Uart1_config();
-
-	
+	Exi_config();
+		
 
 	while (1)
 	{
@@ -58,13 +59,13 @@ void gpio_setup(void)
 	GPIOA->CRL &= ~(GPIO_CRL_CNF1 | GPIO_CRL_MODE1);
 	GPIOA->CRL |= GPIO_CRL_MODE1;
 
-	// PA2 UART2: Tx output AF push-pull 1011
+	// PA2 user input 1
 	GPIOA->CRL &= ~(GPIO_CRL_CNF2 | GPIO_CRL_MODE2);
-	GPIOA->CRL |= GPIO_CRL_CNF2_1 | GPIO_CRL_MODE2;
+	GPIOA->CRL |= GPIO_CRL_CNF2_0;
 
-	// PA3 UART2 Rx: input Floating 0100
-	//GPIOA->CRL &= ~(GPIO_CRL_CNF3 | GPIO_CRL_MODE3);
-	//GPIOA->CRL |= GPIO_CRL_CNF3_0;
+	// PA3 user input 0;
+	GPIOA->CRL &= ~(GPIO_CRL_CNF3 | GPIO_CRL_MODE3);
+	GPIOA->CRL |= GPIO_CRL_CNF3_0;
 
 	// PA4 Output for USART1 receive use 0011
 	GPIOA->CRL &= ~(GPIO_CRL_CNF4 | GPIO_CRL_MODE4);
@@ -101,9 +102,9 @@ void gpio_setup(void)
 	//GPIOB->CRL &= ~(GPIO_CRL_CNF5 | GPIO_CRL_MODE5);
 	//GPIOB->CRL |= GPIO_CRL_MODE5;
 //
-	//PB10 Response on ADC watchdog(light is very low) (3) 0011
-	//GPIOB->CRH &= ~(GPIO_CRH_CNF10| GPIO_CRH_MODE10);
-	//GPIOB->CRH |= GPIO_CRH_MODE10;
+	//PB10 external interrupt response
+	GPIOB->CRH &= ~(GPIO_CRH_CNF10| GPIO_CRH_MODE10);
+	GPIOB->CRH |= GPIO_CRH_MODE10;
 }
 
 void systick_config(void)
@@ -202,12 +203,37 @@ void USART1_IRQHandler(void)
 			GPIOA->ODR |= GPIO_ODR_ODR4;
 			GPIOA->ODR |= GPIO_ODR_ODR7;
 		}
-
+				
+		if(Rdata == 'A'){
+			GPIOA->ODR ^= GPIO_ODR_ODR4;
+			GPIOA->ODR ^= GPIO_ODR_ODR7;
+		}
 		
 		delay(25);
 		GPIOA->ODR &= ~GPIO_ODR_ODR1;
 	}
 }
 
+void Exi_config(void){
+ AFIO->EXTICR[1] = 0;
+ 
+	
+EXTI->IMR |= EXTI_IMR_MR2 | EXTI_IMR_MR3;
+EXTI->RTSR |= EXTI_RTSR_TR2 | EXTI_RTSR_TR3;
 
+NVIC_EnableIRQ(EXTI2_IRQn);
+//NVIC_EnableIRQ(EXTI3_IRQn);
+
+}
+
+void EXTI2_IRQHandler(void){
+	if(EXTI->PR & EXTI_PR_PR2){
+			EXTI->PR |= EXTI_PR_PR2;
+	}
+		GPIOA->ODR |= GPIO_ODR_ODR0;
+		USART1->DR = 'A';
+		delay(25);
+		GPIOA->ODR &= ~GPIO_ODR_ODR0;
+
+}
 
