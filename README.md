@@ -152,7 +152,7 @@ This project demonstrates UART communication, ADC threshold detection, timer-tri
 
 ## License
 
-This project is created for academic and educational purposes under the 3200 Embedded Systems course. No open-source license is currently applied.
+This project is created for academic and educational purposes under the CSE 3200 course. No open-source license is currently applied.
 
 ## Author
 
