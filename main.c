@@ -43,9 +43,15 @@ int main(void)
 
 void En_clock(void)
 {
-	RCC->APB1ENR |= RCC_APB1ENR_USART2EN | RCC_APB1ENR_TIM2EN;
+	RCC->APB1ENR |= RCC_APB1ENR_USART2EN 
+					| RCC_APB1ENR_TIM2EN;
 
-	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN | RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_ADC1EN | RCC_APB2ENR_ADC1EN;
+	RCC->APB2ENR |= RCC_APB2ENR_AFIOEN 
+					| RCC_APB2ENR_IOPAEN 
+					| RCC_APB2ENR_IOPBEN 
+					| RCC_APB2ENR_USART1EN 
+					| RCC_APB2ENR_ADC1EN 
+					| RCC_APB2ENR_ADC1EN;
 }
 
 void gpio_setup(void)
@@ -110,7 +116,8 @@ void systick_config(void)
 {
 	SysTick->LOAD = 72000 - 1;
 	SysTick->VAL = 0;
-	SysTick->CTRL = SysTick_CTRL_CLKSOURCE | SysTick_CTRL_ENABLE;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE 
+					| SysTick_CTRL_ENABLE;
 }
 
 void delay_ms(void)
@@ -163,7 +170,10 @@ void TIM2_IRQHandler(void)
 }
 void Uart1_config(void)
 {
-	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE | USART_CR1_UE;
+	USART1->CR1 |= USART_CR1_TE 
+					| USART_CR1_RE 
+					| USART_CR1_RXNEIE 
+					| USART_CR1_UE;
 
 	// Baud rate is 9600;
 	USART1->BRR = 0x1DCC;
@@ -178,8 +188,6 @@ void USART1_IRQHandler(void)
 	{
 		Rdata = USART1->DR;
 		USART1->SR &= ~USART_SR_RXNE;
-
-		// Receving data from USART1 rx
 		GPIOA->ODR |= GPIO_ODR_ODR1;
 
 		if (Rdata == 0)
@@ -206,7 +214,6 @@ void USART1_IRQHandler(void)
 		if (Rdata == 'A')
 		{
 			GPIOA->ODR ^= GPIO_ODR_ODR6;
-			// GPIOA->ODR ^= GPIO_ODR_ODR7;
 		}
 
 		if (Rdata == 'B')
@@ -227,8 +234,8 @@ void Exi_config(void)
 {
 	AFIO->EXTICR[1] = 0;
 
-	EXTI->IMR |= EXTI_IMR_MR2 | EXTI_IMR_MR3;
-	EXTI->RTSR |= EXTI_RTSR_TR2 | EXTI_RTSR_TR3;
+	EXTI->IMR |= EXTI_IMR_MR2;
+	EXTI->RTSR |= EXTI_RTSR_TR2;
 
 	NVIC_EnableIRQ(EXTI2_IRQn);
 	// NVIC_EnableIRQ(EXTI3_IRQn);
