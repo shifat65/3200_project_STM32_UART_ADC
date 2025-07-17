@@ -1,4 +1,4 @@
-# STM32F103C6 Dual MCU Communication Project
+# STM32F103C6 Dual MCU Communication(UART) Project
 
 ## Overview
 
